@@ -1,0 +1,9 @@
+*.pyc
+.idea/
+mmyolo/data
+mmyolo/work_dirs
+mmyolo/ckpt
+
+*.pth
+/angle_prediction/pretrain_ckpt/
+/angle_prediction/ouput_dir/
