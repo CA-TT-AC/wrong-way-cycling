@@ -1,26 +1,73 @@
 # wise_transportation
 
-## 介绍
-It is a repo to submit all code related to the project.
+It is the official repo for "Multiple-Model Ensemble Learning for Wrong-Way-Cycling Prediction
+in Long-Form Video"
 
-### blender
-目录``blender``下为blender生成脚本.
+## Requirements
+First, change the working directory to ``mmyolo/``
+```
+cd mmyolo
+```
+Install MMEngine, MMCV and MMDetection using MIM
+```shell
+pip install -U openmim
+mim install -r requirements/mminstall.txt
+```
+Install MMYOLO
+```shell 
+mim install -r requirements/albu.txt
+mim install "mmyolo"
+```
 
-### Dataset Scripts
+## Data Preparation
+
 Run code in ``dataset_scripts`` to extract frames in videos as you want.  
 
 Run ``mmyolo/detect2label.py`` to generate orientation label by detection model.
 
-### Prediction
-目录``angle_prediction``下为角度预测算法部分代码.
+The training set are placed at ``data/``, and the folder structure should be:
+```
+wrong-way-cycling
+├── data
+│   ├── Dataset_one_class
+│   │   ├── Annotations
+│   │   │   ├── coco_info.json
+│   │   ├── Images
+│   │   │   ├── ...
+```
 
-### mmyolo
-目录``mmyolo``下为目标检测部分代码.
-#### Detection Pipeline
-这是一个从两张连续帧推导出每个车角度的pipeline，其运行方式是
+## Train & Test
+First, change the working directory to ``mmyolo/``
 ```
 cd mmyolo
-python detect_pipeline.py
 ```
-可以在``mmyolo/infer_image.py``的传参中，修改模型，可以选择5m与5s.
-训练好的checkpoint默认存放在``mmyolo/ckpt/``目录下，否则您可能需要在``mmyolo/infer_image.py``中修改文件路径.
+Sample command for training:
+```shell
+Python tools/train.py configs/custom/5s.py
+```
+
+Sample command for testing:
+```shell
+Python tools/test.py configs/custom/5s.py %path/to/checkpoint.pth% --show-dir %path/to/folder/to/save/results%
+```
+
+## Inferencing
+Step1. Generate Data from Video
+```
+python dataset_script\Frame_extraction_2_monte.py --name %NAME% --Eg %Eg%
+```
+
+Step2. Run Inferencing Script
+```bash
+cd mmyolo
+# Ensemble Method
+python detect_anglepred_pipeline.py --name %NAME% --Eg %Eg%
+# Orientation-aware Model Method
+python anglepred_pipeline.py --name %NAME% --Eg %Eg%
+# Detection-based Method 
+python detect_pipeline.py --name %NAME% --Eg %Eg%
+```
+
+## License
+
+Please check the LICENSE file.
