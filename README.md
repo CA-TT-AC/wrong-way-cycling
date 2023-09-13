@@ -1,4 +1,4 @@
-# wise_transportation
+# Wise Transportation
 
 It is the official repo for "Multiple-Model Ensemble Learning for Wrong-Way-Cycling Prediction
 in Long-Form Video"
