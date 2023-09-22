@@ -1,5 +1,5 @@
 # Model
-The model will be hosted on the Hugging Face platform for easy updates.
+The model checkpoints have been hosted on the Hugging Face platform.
 [Hugging Face](https://huggingface.co/ascka/MMYolo/tree/main)
 
 - Install MMEngine, MMCV, and MMDetection using MIM
@@ -57,4 +57,3 @@ Running the above test command will provide you with AP performance metrics, as 
     """
 
 ```
-Please help me translate this README file into English.
