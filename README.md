@@ -43,12 +43,12 @@ cd mmyolo
 ```
 Sample command for training:
 ```shell
-Python tools/train.py configs/custom/5s.py
+python tools/train.py configs/custom/5s.py
 ```
 
 Sample command for testing:
 ```shell
-Python tools/test.py configs/custom/5s.py %path/to/checkpoint.pth% --show-dir %path/to/folder/to/save/results%
+python tools/test.py configs/custom/5s.py %path/to/checkpoint.pth% --show-dir %path/to/folder/to/save/results%
 ```
 
 ## Inferencing
