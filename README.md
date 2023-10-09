@@ -20,7 +20,7 @@ mim install "mmyolo"
 ```
 
 ## Data Preparation
-Please email author by [jing.xu@nuaa.edu.cn]{jing.xu@nuaa.edu.cn} to obtain all the dataset.
+Please email author by jing.xu@nuaa.edu.cn to obtain all the dataset.
 Run code in ``dataset_scripts`` to extract frames in videos as you want.  
 
 Run ``mmyolo/detect2label.py`` to generate orientation label by detection model.
