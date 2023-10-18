@@ -1,7 +1,7 @@
 # Wrong-way-cycling prediction
 
 It is the official repo for "Multiple-Model Ensemble Learning for Wrong-Way-Cycling Prediction
-in Long-Form Video"
+in Long-Form Video". Welcome to report issue or email author to report your problem.
 
 ## Requirements
 First, change the working directory to ``mmyolo/``
