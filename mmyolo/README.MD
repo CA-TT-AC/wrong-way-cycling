@@ -28,7 +28,7 @@ If training is interrupted, you can resume it by adding ```--resume``` to the tr
 
 - Testing
 ```shell
-Python tools/test.py configs/custom/5s.py work_dirs/king/best_coco_bbox_mAP_epoch_40.pth --show-dir show_results
+python tools/test.py configs/custom/5s.py %path/to/checkpoint.pth% --show-dir %path/to/folder/to/save/results%
 ```
 Running the above test command will provide you with AP performance metrics, as well as automatically save inference result images to the 'work_dirs/king/{timestamp}/show_results' folder.
 

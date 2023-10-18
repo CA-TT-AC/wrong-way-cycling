@@ -1,13 +1,5 @@
 # Copyright (c) Meta Platforms, Inc. and affiliates.
 # All rights reserved.
-
-# This source code is licensed under the license found in the
-# LICENSE file in the root directory of this source tree.
-# --------------------------------------------------------
-# References:
-# DeiT: https://github.com/facebookresearch/deit
-# BEiT: https://github.com/microsoft/unilm/tree/master/beit
-# --------------------------------------------------------
 import argparse
 import datetime
 import json
@@ -31,7 +23,7 @@ import models
 from train_api import train_one_epoch
 from validation_api import validation
 
-from dataset import BlenderDataset, NeRFDataset
+from dataset import NeRFDataset
 
 def get_args_parser():
     parser = argparse.ArgumentParser('MAE pre-training', add_help=False)
@@ -64,9 +56,9 @@ def get_args_parser():
                         help='epochs to warmup LR')
 
     # Dataset parameters
-    parser.add_argument('--data_path', default=r'D:\Instant-NGP-for-RTX-3000-and-4000\angle_data\real_dataset', type=str,
+    parser.add_argument('--data_path', default='./data/real_dataset', type=str,
                         help='dataset path')
-    parser.add_argument('--val_data_path', default=r'D:\Instant-NGP-for-RTX-3000-and-4000\angle_data\val_dataset', type=str,
+    parser.add_argument('--val_data_path', default='./data/val_dataset', type=str,
                         help='validation dataset path')
     parser.add_argument('--output_dir', default='./output_test',
                         help='path where to save, empty for no saving')
@@ -75,9 +67,9 @@ def get_args_parser():
     parser.add_argument('--device', default='cuda',
                         help='device to use for training / testing')
     parser.add_argument('--seed', default=0, type=int)
-    parser.add_argument('--resume', default=r'D:\wise_transportation\gitee_repo\angle_prediction\pretrain_12_dir\checkpoint-49.pth',
+    # change to your pretrained path for finetuning!
+    parser.add_argument('--resume', default=None,
                         help='resume from checkpoint')
-
     parser.add_argument('--start_epoch', default=0, type=int, metavar='N',
                         help='start epoch')
     parser.add_argument('--num_workers', default=0, type=int)
