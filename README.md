@@ -20,7 +20,7 @@ mim install "mmyolo"
 ```
 
 ## Data Preparation
-Please email author by jing.xu@nuaa.edu.cn to obtain all the dataset.
+All the datasets are available in https://huggingface.co/datasets/CATTAC/wrong-way-cycling!
 
 Run code in ``dataset_scripts`` to extract frames in videos as you want.  
 
