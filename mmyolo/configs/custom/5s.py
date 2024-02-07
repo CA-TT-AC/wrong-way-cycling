@@ -1,7 +1,7 @@
 # 基于该配置进行继承并重写部分配置
 _base_ = '../yolov5/yolov5_s-v61_syncbn_fast_8xb16-300e_coco.py'
 
-data_root = 'data/Ver3/output/'  # Root path of data
+data_root = 'data/dataset/'  # Root path of data
 # Path of train annotation file
 train_ann_file = 'train.json'
 train_data_prefix = 'train/'  # Prefix of train image path
@@ -22,12 +22,12 @@ anchors = [
 # 最大训练 40 epoch
 max_epochs = 400
 # bs 为 12
-train_batch_size_per_gpu = 32
+train_batch_size_per_gpu = 64
 # dataloader 加载进程数
 train_num_workers = 4
 
 # 加载 COCO 预训练权重
-load_from = '/mnt/c/Users/ShengRen/wise_transportation/mmyolo/work_dirs/MMYolo/yolov5_s-v61_syncbn_fast_8xb16-300e_coco_20220918_084700-86e02187.pth'  # noqa
+load_from = 'pretrain_ckpt/yolov5_s-v61_syncbn_fast_8xb16-300e_coco_20220918_084700-86e02187.pth'  # noqa
 
 model = dict(
     # 固定整个 backbone 权重，不进行训练
