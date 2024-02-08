@@ -1,7 +1,12 @@
 # Model
 The model checkpoints have been hosted on the Hugging Face platform.
 [Hugging Face](https://huggingface.co/ascka/MMYolo/tree/main)
-
+- Install Python, Pytorch (Tested On Python=3.10, Pytorch=2.0.0, cuda=11.7)
+```
+conda create -n wwc python=3.10
+conda activate wwc
+conda install pytorch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 pytorch-cuda=11.7 -c pytorch -c nvidia -y
+```
 - Install MMEngine, MMCV, and MMDetection using MIM
 ```shell
 pip install -U openmim
@@ -14,6 +19,7 @@ mim install "mmyolo"
 ```
 
 # Train & Test
+- Modified the configuration in `%you_model%.py`, configuration like train and test datasets path or some hyperparameters are in the python file.
 - Training
 Place the training dataset in the 'data' folder with the following structure:
    - Dataset_one_class
@@ -22,7 +28,7 @@ Place the training dataset in the 'data' folder with the following structure:
      - Images
        - ...
 ```shell
-Python tools/train.py configs/custom/5s.py
+python tools/train.py configs/custom/5s.py
 ```
 If training is interrupted, you can resume it by adding ```--resume``` to the training command. The program will automatically resume training from the latest saved checkpoint in the 'work_dirs' directory.
 

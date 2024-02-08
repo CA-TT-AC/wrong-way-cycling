@@ -8,6 +8,12 @@ First, change the working directory to ``mmyolo/``
 ```
 cd mmyolo
 ```
+Install Python, Pytorch (Tested On Python=3.10, Pytorch=2.0.0, cuda=11.7)
+```
+conda create -n wwc python=3.10
+conda activate wwc
+conda install pytorch==2.0.0 torchvision==0.15.0 torchaudio==2.0.0 pytorch-cuda=11.7 -c pytorch -c nvidia -y
+```
 Install MMEngine, MMCV and MMDetection using MIM
 ```shell
 pip install -U openmim
@@ -62,6 +68,7 @@ Sample command for testing:
 ```shell
 python tools/test.py configs/custom/5s.py %path/to/checkpoint.pth% --show-dir %path/to/folder/to/save/results%
 ```
+Modified the configuration in `%you_model%.py`, configuration like train and test datasets path or some hyperparameters are in the python file.
 
 ## Whole Pipeline Inferencing
 Step1. Generate Data from Video
