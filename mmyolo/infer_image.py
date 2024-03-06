@@ -18,7 +18,7 @@ class InferImage():
         path_to_checkpoint: the path to checkpoint
         threshold: Bbox score threshold
     """
-    def __init__(self,path_to_checkpoint: str = r'./ckpt/5m_32batch_400epoch.pth', path_to_config: str = r'.\configs\custom\5m.py',
+    def __init__(self,path_to_checkpoint: str = r'./ckpt/5m_ver2.pth', path_to_config: str = r'.\configs\custom\5m.py',
                  threshold: float = 0.7) -> None:
         config = Config.fromfile(path_to_config)
         self.model = init_detector(config,
