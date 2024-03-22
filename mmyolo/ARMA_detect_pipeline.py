@@ -33,17 +33,6 @@ def angle_infer(image, bbox, model, transform):
     angle_pred = infer.test(model, transform, cropped_patch)
     return angle_pred
 
-def multi_angle_infer(image, bboxes, model, transform):
-    if len(bboxes) == 0:
-        return []
-    image = Image.fromarray(image)
-    inputs = []
-    for bbox in bboxes:
-        cropped_patch = image.crop(bbox)
-        inputs.append(cropped_patch)
-    angle_pred = infer.multi_image_test(model, transform, inputs)
-    return angle_pred
-
 
 def average(x, y):
     y, x = max(x, y), min(x, y)
@@ -52,58 +41,49 @@ def average(x, y):
     return (x + y) / 2 % 360
 
 
-# input 2 image paths, as a list or tuple output predicted angle
-def images2angle(images, angle_model, transform, detect_model, match_type='Hungary'):
-    '''
-    修改该函数，使得在匹配之后，每一个bbox有其对应的角度，并在match list中，给出每一个match的角度预测
-    '''
-    # in bboxes, we save tow list, which contains bboxes of two images
+def images2angle(paths, inited_model, match_type='Hungary'):
     bboxes = []
-    angle_preds = []
-    for image in images:
-        img = image
+    for path in paths:
+        img = mmcv.imread(path)
         img = mmcv.imconvert(img, 'bgr', 'rgb')
-        bbox = detect_model.ImagePrediction(img).bboxes
+        bbox = inited_model.ImagePrediction(img).bboxes
         bbox = bbox.tolist()
-        # angle_pred = []
-        angle_pred = multi_angle_infer(img, bbox, angle_model, transform)
+        # 可视化
+        # draw_bbox_on_image(img, bbox, path.split('\\')[-2] + '_' + path.split('\\')[-1])
         for i, one_bbox in enumerate(bbox):
-            # angle_pred.append(angle_infer(img, bbox[i], angle_model, transform))
             w = one_bbox[2] - one_bbox[0]
             h = one_bbox[3] - one_bbox[1]
             bbox[i][2] = w
             bbox[i][3] = h
             bbox[i].append(0.0)
-        angle_preds.append(angle_pred)
         bboxes.append(bbox)
+
     # print('bbox:\n', bboxes)
     # get ious from one list of bbox to the other
     ious = box_iou_rotated(torch.tensor(bboxes[0]).float(),
                            torch.tensor(bboxes[1]).float()).cpu().numpy()
     # print('iou matrix:\n', ious)
     if len(ious) == 0 or len(ious[0]) == 0:
-        return [], []
+        return []
     match_list = []
     if match_type == 'Hungary':
         ious[ious > 0.98] = 0
-        ious[ious < 0.4] = 0
+        ious[ious < 0.5] = 0
         # print(ious)
         # 删除全为0的行和列
         nonzero_rows = np.any(ious != 0, axis=1)  # 找到非零行
         nonzero_cols = np.any(ious != 0, axis=0)  # 找到非零列
         ious = ious[nonzero_rows][:, nonzero_cols]  # 使用布尔索引获取非零行和列的子矩阵
-        # print(ious)
+        print(ious)
         row_id, col_id = linear_sum_assignment(ious, maximize=True)
         match_list = np.array([row_id, col_id]).transpose()
-        # match_list_ = list(match_list_)
     else:
         iou_argmax = np.argmax(ious, axis=1)
         iou_max = np.max(ious, axis=1)
         enough_iou_idxs = np.where(iou_max > 0.05)
         for idx in enough_iou_idxs[0]:
             match_list.append((idx, iou_argmax[idx]))
-    angles_det_ans = []
-    angles_pred_ans = []
+    angles = []
     for i, j in match_list:
         point1 = bboxes[0][i]
         point2 = bboxes[1][j]
@@ -111,11 +91,10 @@ def images2angle(images, angle_model, transform, detect_model, match_type='Hunga
         center2 = point2[0] + point2[2] / 2, point2[1] + point2[3] / 2
         vec = np.array(center1) - np.array(center2)
         angle = get_angle(vec[0], -vec[1])
-        angles_det_ans.append(angle)
-        angles_pred_ans.append(average(angle_preds[0][i].cpu().item(), angle_preds[1][j].cpu()).item())
-    print("detect pred：", angles_det_ans)
-    print("angle, pred: ", angles_pred_ans)
-    return angles_det_ans, angles_pred_ans
+        angles.append(angle)
+    print(angles)
+
+    return angles
 
 
 def sort_(elem):
@@ -154,7 +133,7 @@ def draw_pic(points, scales=None, label_points=None, label_scales=None):
     # 显示图表
     plt.savefig("output.png", dpi=400)
 
-def ori2minuteResult(times, values, phi, Eg):
+def ori2minuteResult(times, values, phi):
     print("Phi:", phi)
     useful_data = np.array(values[1:])
     overlapping_data = phi*np.array(values[:-1])
@@ -162,7 +141,7 @@ def ori2minuteResult(times, values, phi, Eg):
     print("ori:", useful_data)
     print("processed:", processed_data)
     # 设置间隔
-    interval = 60 // Eg
+    interval = 30
 
     # 计算可以完整分割的组数
     num_full_groups = processed_data.size // interval
@@ -177,7 +156,7 @@ def ori2minuteResult(times, values, phi, Eg):
 
 
 def video2angle(path, pos_angle, Eg, ui=False):
-    angle_model, transform = infer.init_model_trans()
+    # angle_model, transform = infer.init_model_trans()
     detect_model = InferImage()
     cap = cv2.VideoCapture(path)
     isOpened = cap.isOpened  # 判断是否打开
@@ -232,28 +211,20 @@ def video2angle(path, pos_angle, Eg, ui=False):
             frames.append(frame)
 
             frames.reverse()
-            ret_det, ret_angle = images2angle(frames, angle_model, transform, detect_model)
+            ret_det = images2angle(frames, detect_model)
             ret_det = np.array(ret_det)
-            ret_angle = np.array(ret_angle)
-            a = np.maximum(ret_det, ret_angle)
-            b = np.minimum(ret_det, ret_angle)
-            divs = np.minimum(a - b, b - a + 360)
-            ans = []
-            # 使用循环遍历divs列表
-            for i in range(len(divs)):
-                # 检查当前divs的值是否小于45
-                if divs[i] < 120:
-                    # 获取当前索引对应的ret_det和ret_angle的值
-                    current_ret_det = ret_det[i]
-                    current_ret_angle = ret_angle[i]
-                    ave = average(current_ret_det, current_ret_angle)
-                    ans.append(ave)
+            # ret_angle = np.array(ret_angle)
+            # a = np.maximum(ret_det, ret_angle)
+            # b = np.minimum(ret_det, ret_angle)
+            # divs = np.minimum(a - b, b - a + 360)
+            ans = ret_det
+
             a = np.maximum(ans, pos_angle)
             b = np.minimum(ans, pos_angle)
             divs_with_pos = np.minimum(a - b, b - a + 360)
             divs_with_pos = [i > 90 for i in divs_with_pos]
             print(divs_with_pos)
-            print("Time:", sum // fps // 60, sum // fps % 60)
+            print("Time:", sum // fps)
             num_reverse = (sum // fps, int(np.sum(divs_with_pos)))
             num_forward = (sum // fps, len(divs_with_pos) - int(np.sum(divs_with_pos)))
             points_wrong.append(num_reverse)
@@ -278,7 +249,7 @@ def video2angle(path, pos_angle, Eg, ui=False):
     # print("right:")
     # print(model_right_fit.summary())
     # print(model_right_fit.params)
-    minute_result_right = ori2minuteResult(times, values, model_right_fit.params['ar.L1'], Eg)
+    minute_result_right = ori2minuteResult(times, values, model_right_fit.params['ar.L1'])
     # 将数据转换成Pandas Series对象，仅使用数值部分
     times = [pair[0] for pair in points_wrong]
     values = [pair[1] for pair in points_wrong]
@@ -295,7 +266,7 @@ def video2angle(path, pos_angle, Eg, ui=False):
     # print(model_wrong_fit.summary())
     # print(model_wrong_fit.params)
 
-    minute_result_wrong = ori2minuteResult(times, values, model_wrong_fit.params['ar.L1'], Eg)
+    minute_result_wrong = ori2minuteResult(times, values, model_wrong_fit.params['ar.L1'])
 
 
 
@@ -401,8 +372,8 @@ if __name__ == '__main__':
     # iface.launch()
 
     # no ui
-    video_path = r'D:\wise_transportation\data\road_videos\videosV2\90-4.MOV'
+    video_path = r'D:\wise_transportation\data\road_videos\videosV2\221-28.MOV'
     eg = 2
-    forward = 280
+    forward = 260
     video2angle(video_path, forward, eg)
     print("finish")
