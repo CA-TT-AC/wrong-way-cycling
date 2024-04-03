@@ -7,7 +7,7 @@ from math import degrees
 
 
 # model part
-def init_model_trans(ckpt_path=r'D:\wise_transportation\gitee_repo\mmyolo\ckpt\finetune-checkpoint-160.pth'):
+def init_model_trans(ckpt_path=r'D:\wise_transportation\gitee_repo\mmyolo\ckpt\checkpoint-199-3_21.pth'):
     model = AngleModel().cuda()
     ckpt = torch.load(ckpt_path)
     ckpt = ckpt['model']
@@ -30,6 +30,18 @@ def test(model, transform, x):
         target = torch.zeros(0).to('cuda:0')
         loss, pred, acc = model(x, target)
     return pred
+
+def multi_image_test(model, transform, x):
+    input = []
+    for img in x:
+        input.append(transform(img))
+    x = torch.stack(input, dim=0).cuda()
+    model.eval()
+    with torch.no_grad():
+        target = torch.zeros(x.shape[0]).to('cuda:0')
+        loss, pred, acc = model(x, target)
+    return pred
+
 
 if __name__ == '__main__':
     # image part
