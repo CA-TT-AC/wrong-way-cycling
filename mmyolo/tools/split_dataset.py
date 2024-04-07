@@ -2,14 +2,22 @@ import os
 import json
 import numpy as np
 import shutil
+import argparse
+
+
+parser = argparse.ArgumentParser(description="Parse dataset and generate output files.")
+parser.add_argument('--dataset_root', type=str, required=True, help='Root directory of the dataset')
+parser.add_argument('--output_root', type=str, required=True, help='Directory where output files will be saved')
+
+args = parser.parse_args()
  
 # 数据集路径
-dataset_root = "./data/Ver3"
+dataset_root = args.dataset_root
 images_folder = os.path.join(dataset_root, "Images")
 annotations_path = os.path.join(dataset_root, "Annotations/coco_info.json")
  
 # 输出路径
-output_root = os.path.join(dataset_root, "output")
+output_root = args.output_root
 os.makedirs(output_root, exist_ok=True)
  
 # 读取annotations.json文件
@@ -25,7 +33,7 @@ categories = annotations_data["categories"]
 np.random.shuffle(images)
  
 # 训练集，验证集比例
-train_ratio, val_ratio = 0.8, 0.2
+train_ratio, val_ratio = 0.9, 0.1
  
 # 计算训练集，验证集的大小
 num_images = len(images)

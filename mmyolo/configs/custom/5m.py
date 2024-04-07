@@ -1,6 +1,6 @@
 _base_ = '../yolov5/yolov5_s-v61_syncbn_fast_8xb16-300e_coco.py'
 
-data_root = 'data/Ver3/output/'  # Root path of data
+data_root = 'data/dataset/'  # Root path of data
 # Path of train annotation file
 train_ann_file = 'train.json'
 train_data_prefix = 'train/'  # Prefix of train image path
@@ -12,7 +12,7 @@ class_name = ('ebike', ) # the name of classes
 num_classes = len(class_name) # the number of classes
 metainfo = dict(classes=class_name, palette=[(20, 220, 60)])
 
-train_batch_size_per_gpu = 32
+train_batch_size_per_gpu = 64
 max_epochs = 400  # Maximum training epochs
 
 # ========================modified parameters======================
@@ -23,7 +23,7 @@ affine_scale = 0.9
 loss_cls_weight = 0.3
 loss_obj_weight = 0.7
 mixup_prob = 0.1
-load_from = "/mnt/c/Users/ShengRen/wise_transportation/mmyolo/work_dirs/MMYolo/yolov5_m-v61_syncbn_fast_8xb16-300e_coco_20220917_204944-516a710f.pth"
+load_from = "pretrain_ckpt/yolov5_m-v61_syncbn_fast_8xb16-300e_coco_20220917_204944-516a710f.pth"
 
 # =======================Unmodified in most cases==================
 num_det_layers = _base_.num_det_layers

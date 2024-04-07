@@ -3,6 +3,8 @@
 mmyolo/data
 mmyolo/work_dirs
 mmyolo/ckpt
+mmyolo/pretrain_ckpt
+venv
 
 *.pth
 /angle_prediction/pretrain_ckpt/
