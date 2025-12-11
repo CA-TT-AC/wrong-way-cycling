@@ -87,7 +87,7 @@ def dataset2angle(path):
 
 
 def twoimages2angle():
-    folder = r'D:\PaddleDetection\data'
+    folder = r'%path/to/data_folder%'
     paths = os.listdir(folder)
     paths.sort(reverse=True)
     for i in range(len(paths)):
@@ -128,7 +128,7 @@ def separate_numbers(data):
 
 
 if __name__ == '__main__':
-    path = r'D:\wise_transportation\data\2frame_dataset\140-6-9'
+    path = r'%path/to/dataset%'
     ans = dataset2angle(path)
     # 调用函数进行分离
     x_group, y_group = separate_numbers(ans)

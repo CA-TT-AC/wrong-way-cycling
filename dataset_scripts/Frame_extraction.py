@@ -5,7 +5,7 @@ import numpy as np
 # 该脚本用于生成目标检测的训练数据
 # -----------------------
 
-cap = cv2.VideoCapture(r"D:\wise_transportation\data\road_videos\suzhou\upload\96-12-fordetection.mov")  # 获取视频对象
+cap = cv2.VideoCapture(r"%path/to/video.mov%")  # 获取视频对象
 
 isOpened = cap.isOpened  # 判断是否打开
 # 视频信息获取
@@ -34,7 +34,7 @@ while (isOpened):
         frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
         imageNum = imageNum + 1
-        fileName = 'D:\wise_transportation\data\images_vid4\\' + str(imageNum) + '.jpg'  # 存储路径
+        fileName = r'%path/to/save/images%' + str(imageNum) + '.jpg'  # 存储路径
         cv2.imwrite(fileName, frame, [cv2.IMWRITE_JPEG_QUALITY, 100])
         print(fileName + " successfully write in")  # 输出存储状态
 

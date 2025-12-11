@@ -51,8 +51,8 @@ def transfer(root_dir, video_path, prefix):
 
 if __name__ == '__main__':
     condition = r'\3'
-    video_folder = r'D:\Instant-NGP-for-RTX-3000-and-4000\angle_data\video_dataset' + condition
-    save_dir = r'D:\Instant-NGP-for-RTX-3000-and-4000\angle_data\pic_dataset' + condition
+    video_folder = r'%path/to/video_folder%' + condition
+    save_dir = r'%path/to/save_dir%' + condition
     os.makedirs(save_dir, exist_ok=True)
     videos = os.listdir(video_folder)
     for i, name in enumerate(videos):

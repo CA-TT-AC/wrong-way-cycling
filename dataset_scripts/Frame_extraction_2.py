@@ -7,8 +7,8 @@ import numpy as np
 # 该脚本用于生成目标检测的角度验证数据
 # -----------------------
 
-cap = cv2.VideoCapture(r"D:\wise_transportation\data\road_videos\suzhou\146-9.MOV")  # 获取视频对象
-root_dir = r'D:\wise_transportation\data\2frame_dataset\suzhou' + '/'
+    cap = cv2.VideoCapture(r"%path/to/video.mov%")  # 获取视频对象
+    root_dir = r'%path/to/save/images%' + '/'
 os.makedirs(root_dir, exist_ok=True)
 isOpened = cap.isOpened  # 判断是否打开
 # assert isOpened == True

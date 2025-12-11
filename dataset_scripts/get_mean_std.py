@@ -29,7 +29,7 @@ def calculate_mean_and_std(root_dir):
 
 if __name__ == '__main__':
 
-    root_directory = r'D:\Instant-NGP-for-RTX-3000-and-4000\angle_data\real_dataset'
+    root_directory = r'%path/to/dataset%'
     mean, std = calculate_mean_and_std(root_directory)
     print("Mean:", mean)
     print("Std:", std)

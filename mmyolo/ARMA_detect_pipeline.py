@@ -7,7 +7,7 @@ import sys
 import cv2
 import gradio as gr
 
-sys.path.append(r'D:\wise_transportation\wrong-way-cycling')
+sys.path.append(r'%path/to/project_root%')
 import numpy as np
 import openpyxl
 import torch
@@ -295,7 +295,7 @@ def video2angle(path, pos_angle, Eg, ui=False):
     #     points.append((i+1, minute_result_wrong[i]/(minute_result_wrong[i]+minute_result_right[i])))
     #     scales.append(minute_result_wrong[i]+minute_result_right[i])
 
-    # json_file_path = r"D:\wise_transportation\wrong-way-cycling\mmyolo\data\78-2.json"
+    # json_file_path = r"%path/to/json_file%"
     #
     # # Read the JSON file
     # with open(json_file_path, 'r') as json_file:
@@ -314,7 +314,7 @@ def video2angle(path, pos_angle, Eg, ui=False):
 
 
 def twoimages2angle():
-    folder = r'D:\PaddleDetection\data'
+    folder = r'%path/to/data_folder%'
     paths = os.listdir(folder)
     paths.sort(reverse=True)
     for i in range(len(paths)):
@@ -375,7 +375,7 @@ if __name__ == '__main__':
     # iface.launch()
 
     # no ui
-    video_path = r'D:\wise_transportation\data\road_videos\videosV2\42-2.MOV'
+    video_path = r'%path/to/video.mov%'
     eg = 2
     forward = 85
     video2angle(video_path, forward, eg)

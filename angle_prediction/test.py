@@ -10,10 +10,10 @@ from dataset import NeRFDataset
 
 def get_args_parser():
     parser = argparse.ArgumentParser('Angle prediction', add_help=False)
-    parser.add_argument('--resume', default=r'D:\wise_transportation\gitee_repo\mmyolo\ckpt\finetune-checkpoint-90.pth',
+    parser.add_argument('--resume', default=r'%path/to/checkpoint.pth%',
                         type=str,
                         help='validation dataset path')
-    parser.add_argument('--val_data_path', default=r'D:\Instant-NGP-for-RTX-3000-and-4000\angle_data\val_dataset',
+    parser.add_argument('--val_data_path', default=r'%path/to/val_dataset%',
                         type=str,
                         help='validation dataset path')
     parser.add_argument('--output_dir', default='./output',

@@ -95,13 +95,13 @@ def draw_bbox_on_image(image, bbox, name):
         cv2.rectangle(image, (x_min, y_min), (x_max, y_max), (0, 255, 255), 2)
 
     # 显示结果
-    path = os.path.join(r'D:\wise_transportation\data\visual', name)
+    path = os.path.join(r'%path/to/visual%', name)
     # os.makedirs(path, exist_ok=True)
     cv2.imwrite(path, image)
     return image
 
 if __name__ == '__main__':
-    img_path = r"D:\wise_transportation\data\DSC_0062.JPG"
+    img_path = r"%path/to/image.jpg%"
     img = mmcv.imread(img_path)
     img = mmcv.imconvert(img, 'bgr', 'rgb')
     infer = InferImage()

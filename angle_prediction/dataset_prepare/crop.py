@@ -42,8 +42,8 @@ def crop_images_from_coco(coco_json_path, image_folder_path, output_folder_path)
 
 
 # 示例用法
-coco_json_path = r'D:\wise_transportation\dataset\DatasetId_V2.1\Annotations\coco_info.json'
-image_folder_path = r'D:\wise_transportation\dataset\DatasetId_V2.1\Images'
-output_folder_path = r'D:\wise_transportation\data\cropped_image'
+coco_json_path = r'%path/to/coco_info.json%'
+image_folder_path = r'%path/to/image_folder%'
+output_folder_path = r'%path/to/output_folder%'
 
 crop_images_from_coco(coco_json_path, image_folder_path, output_folder_path)

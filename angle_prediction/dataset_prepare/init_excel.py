@@ -23,7 +23,7 @@ def write_filenames_to_excel(image_folder_path, excel_path):
 
 
 # 示例用法
-image_folder_path = r'D:\wise_transportation\data\146-9-auto-label'
-excel_path = r'D:\wise_transportation\data\146-9-auto-label\label.xlsx'
+image_folder_path = r'%path/to/image_folder%'
+excel_path = r'%path/to/excel.xlsx%'
 
 write_filenames_to_excel(image_folder_path, excel_path)

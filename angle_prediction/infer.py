@@ -7,7 +7,7 @@ from math import degrees
 
 
 # model part
-def init_model_trans(ckpt_path=r'D:\wise_transportation\gitee_repo\mmyolo\ckpt\checkpoint-199-3_21.pth'):
+def init_model_trans(ckpt_path=r'%path/to/checkpoint.pth%'):
     model = AngleModel().cuda()
     ckpt = torch.load(ckpt_path)
     ckpt = ckpt['model']
@@ -45,8 +45,8 @@ def multi_image_test(model, transform, x, device='cuda:0'):
 
 if __name__ == '__main__':
     # image part
-    image_path = r'D:\wise_transportation\data\infer_4.jpg'
-    # image_path = r'D:\Instant-NGP-for-RTX-3000-and-4000\angle_data\pic_dataset\1\2_265.jpg'
+    image_path = r'%path/to/image.jpg%'
+    # image_path = r'%path/to/image.jpg%'
     image = Image.open(image_path).convert('RGB')
     model, trans = init_model_trans()
     output = test(model, trans, image)

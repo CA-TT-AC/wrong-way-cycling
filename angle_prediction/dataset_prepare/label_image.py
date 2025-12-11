@@ -25,7 +25,7 @@ def rename_images_from_excel(excel_path, image_folder_path):
 
 
 # 示例用法
-excel_path = r'D:\wise_transportation\data\label.xlsx'
-image_folder_path = r'D:\wise_transportation\data\146-9-auto-label'
+excel_path = r'%path/to/excel.xlsx%'
+image_folder_path = r'%path/to/image_folder%'
 
 rename_images_from_excel(excel_path, image_folder_path)
