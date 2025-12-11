@@ -23,22 +23,22 @@ def init_model_trans(ckpt_path=r'D:\wise_transportation\gitee_repo\mmyolo\ckpt\c
     return model, transform_test
 
 
-def test(model, transform, x):
-    x = transform(x).unsqueeze(0).to('cuda:0')
+def test(model, transform, x, device='cuda:0'):
+    x = transform(x).unsqueeze(0).to(device)
     model.eval()
     with torch.no_grad():
-        target = torch.zeros(0).to('cuda:0')
+        target = torch.zeros(0).to(device)
         loss, pred, acc = model(x, target)
     return pred
 
-def multi_image_test(model, transform, x):
+def multi_image_test(model, transform, x, device='cuda:0'):
     input = []
     for img in x:
         input.append(transform(img))
-    x = torch.stack(input, dim=0).cuda()
+    x = torch.stack(input, dim=0).to(device)
     model.eval()
     with torch.no_grad():
-        target = torch.zeros(x.shape[0]).to('cuda:0')
+        target = torch.zeros(x.shape[0]).to(x.device)
         loss, pred, acc = model(x, target)
     return pred
 

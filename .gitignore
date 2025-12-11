@@ -3,7 +3,8 @@
 mmyolo/data
 mmyolo/work_dirs
 mmyolo/ckpt
-
+mmyolo/exp
+mmyolo/__pycache__
 *.pth
 /angle_prediction/pretrain_ckpt/
 /angle_prediction/ouput_dir/

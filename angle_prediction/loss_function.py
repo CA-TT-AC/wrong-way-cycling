@@ -6,15 +6,15 @@ import torch.nn as nn
 
 def angle2code(phi):
     phi = phi / 360 * 2 * torch.pi - torch.pi
-    ans = torch.zeros(phi.shape[0], 3).to('cuda:0')
+    ans = torch.zeros(phi.shape[0], 3).to(phi.device)
     for i in range(3):
         ans[:, i] = torch.cos(phi + 2 * (i+1) * torch.pi / 3)
     return ans
 
 
 def code2angle(x):
-    sum_up = torch.zeros(x.shape[0]).to('cuda:0')
-    sum_down = torch.zeros(x.shape[0]).to('cuda:0')
+    sum_up = torch.zeros(x.shape[0]).to(x.device)
+    sum_down = torch.zeros(x.shape[0]).to(x.device)
     for i in range(3):
         sum_up = sum_up + x[:, i] * math.sin(2 * (i+1) * torch.pi / 3)
         sum_down = sum_down + x[:, i] * math.cos(2 * (i+1) * torch.pi / 3)

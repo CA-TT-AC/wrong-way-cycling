@@ -6,7 +6,6 @@ import sys
 
 import cv2
 import gradio as gr
-from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 sys.path.append(r'D:\wise_transportation\wrong-way-cycling')
 import numpy as np
@@ -24,9 +23,11 @@ import numpy as np
 from detect_pipeline import get_angle
 from PIL import Image
 from angle_prediction import infer
+import pandas as pd
+from statsmodels.tsa.arima.model import ARIMA
 
 
-def draw_bboxes(bboxes, image, ret_det, ret_angle, flags, wwc, dpi=100):
+def draw_bboxes_and_save(bboxes, image, ret_det, ret_angle, flags, wwc, filename, dpi=600):
     """
     Draw bounding boxes on an image and save it to a file.
 
@@ -42,50 +43,24 @@ def draw_bboxes(bboxes, image, ret_det, ret_angle, flags, wwc, dpi=100):
     # 显示图像
     ax.imshow(image)
     cur = 0
-    print('wwc:', wwc)
     # 对每个边界框进行遍历并绘制
     for i, bbox in enumerate(bboxes):
         x, y, width, height, _ = bbox
-        if cur >= len(flags) or flags[cur] > 120:
+        if i >= len(flags) or flags[i] > 120:
             continue
         print(wwc[cur])
-        if not wwc[cur]:
+        if wwc[cur] == False:
             color = 'green'
         else:
             color = 'red'
-        rect = patches.Rectangle((x, y), width, height, linewidth=5, edgecolor=color, facecolor='none')
+        rect = patches.Rectangle((x, y), width, height, linewidth=1, edgecolor=color, facecolor='none')
         # 添加这个patch到坐标轴上
         ax.add_patch(rect)
         txt = "det: " + str(int(ret_det[cur])) + '\n' + "ori:" + str(int(ret_angle[cur]))
-        ax.text(x, y, txt, color='blue', fontsize=10, verticalalignment='top',
+        ax.text(x, y, txt, color='blue', fontsize=3, verticalalignment='top',
                 bbox=dict(facecolor='white', alpha=0, edgecolor='none'))
         cur += 1
-
-    plt.gca().xaxis.set_major_locator(plt.NullLocator())  # plt.gca()表示获取当前子图"Get Current Axes"。
-
-    plt.gca().yaxis.set_major_locator(plt.NullLocator())
-
-    plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
-
-    # 将plt转化为numpy数据
-    canvas = FigureCanvasAgg(plt.gcf())
-    # 绘制图像
-    canvas.draw()
-    # 获取图像尺寸
-    w, h = canvas.get_width_height()
-    # 解码string 得到argb图像
-    buf = np.fromstring(canvas.tostring_argb(), dtype=np.uint8)
-    # 重构成w h 4(argb)图像
-    buf.shape = (w, h, 4)
-    # 转换为 RGBA
-    buf = np.roll(buf, 3, axis=2)
-    # 得到 Image RGBA图像对象 (需要Image对象的同学到此为止就可以了)
-    image = Image.frombytes("RGBA", (w, h), buf.tostring())
-    # 转换为numpy array rgba四通道数组
-    image = np.asarray(image)
-    # 转换为rgb图像
-    rgb_image = image[:, :, :3]
-    return rgb_image
+    return plt.gcf()
 
 
 def angle_infer(image, bbox, model, transform):
@@ -139,13 +114,13 @@ def images2angle(images, angle_model, transform, detect_model, match_type='Hunga
             bbox[i].append(0.0)
         angle_preds.append(angle_pred)
         bboxes.append(bbox)
-
+    # print('bbox:\n', bboxes)
     # get ious from one list of bbox to the other
     ious = box_iou_rotated(torch.tensor(bboxes[0]).float(),
                            torch.tensor(bboxes[1]).float()).cpu().numpy()
     # print('iou matrix:\n', ious)
     if len(ious) == 0 or len(ious[0]) == 0:
-        return [], [], [[], []]
+        return [], []
     match_list = []
     if match_type == 'Hungary':
         ious[ious > 0.98] = 0
@@ -178,75 +153,39 @@ def images2angle(images, angle_model, transform, detect_model, match_type='Hunga
         angles_pred_ans.append(average(angle_preds[0][i].cpu().item(), angle_preds[1][j].cpu()).item())
     print("detect pred：", angles_det_ans)
     print("angle, pred: ", angles_pred_ans)
-    print('bbox:\n', bboxes)
-    return angles_det_ans, angles_pred_ans, bboxes
+    return angles_det_ans, angles_pred_ans
 
 
 def sort_(elem):
     return int(elem)
 
 
-def draw_pic(points, scales=None, label_points=None, label_scales=None):
-    # 将点列表分解为两个列表：x坐标和y坐标
+def ori2minuteResult(times, values, phi, Eg):
+    print("Phi:", phi)
+    useful_data = np.array(values[1:])
+
+    phi = 0
+
+    overlapping_data = phi * np.array(values[:-1])
+    processed_data = useful_data - overlapping_data
+    print("ori:", useful_data)
+    print("processed:", processed_data)
+    # 设置间隔
+    interval = 60 // Eg
+
+    # 计算可以完整分割的组数
+    num_full_groups = processed_data.size // interval
+
+    # 重塑数组，仅包括可以完整分割的部分
+    reshaped_data = processed_data[:num_full_groups * interval].reshape(-1, interval)
+
+    # 计算每组的均值
+    mean_values = reshaped_data.mean(axis=1)
+    print("每分钟均值：", mean_values)
+    return mean_values
 
 
-    # 创建一个图表
-    plt.figure(figsize=(10, 6))
-    if len(points) != 0:
-
-        x, y = zip(*points)
-        # 绘制折线图
-        pred_line = plt.plot(x, y, marker='', linestyle='--', color='blue', label='prediction')  # 'o'表示点的样式
-        print(x, y)
-        print(scales)
-        scales = np.array(scales) * 20
-        # 在相同的坐标上绘制不同大小的点
-        plt.scatter(x, y, s=scales, color='blue', cmap='coolwarm')
-        if label_points is not None:
-            x, y = zip(*label_points)
-            # 绘制折线图
-            label_line = plt.plot(x, y, marker='', linestyle='dashdot', color='green', label='annotation')  # 'o'表示点的样式
-            # 在相同的坐标上绘制不同大小的点
-            plt.scatter(x, y, s=label_scales, color='green')
-            plt.legend()
-        #     plt.legend((pred_line, label_line), ['prediction', 'annotation'])
-        # else:
-        #     plt.legend(pred_line, ['prediction'])
-        # 设置图表的标题和坐标轴标签
-    plt.title("Time per Ratio")
-    plt.xlabel("Time")
-    plt.ylabel("Ratio")
-
-    # # 显示图表
-    # plt.savefig("output.png", dpi=400)
-    # plt.gca().xaxis.set_major_locator(plt.NullLocator())  # plt.gca()表示获取当前子图"Get Current Axes"。
-    #
-    # plt.gca().yaxis.set_major_locator(plt.NullLocator())
-
-    # plt.subplots_adjust(top=1, bottom=0, left=0, right=1, hspace=0, wspace=0)
-
-    # 将plt转化为numpy数据
-    canvas = FigureCanvasAgg(plt.gcf())
-    # 绘制图像
-    canvas.draw()
-    # 获取图像尺寸
-    w, h = canvas.get_width_height()
-    # 解码string 得到argb图像
-    buf = np.fromstring(canvas.tostring_argb(), dtype=np.uint8)
-    # 重构成w h 4(argb)图像
-    buf.shape = (w, h, 4)
-    # 转换为 RGBA
-    buf = np.roll(buf, 3, axis=2)
-    # 得到 Image RGBA图像对象 (需要Image对象的同学到此为止就可以了)
-    image = Image.frombytes("RGBA", (w, h), buf.tostring())
-    # 转换为numpy array rgba四通道数组
-    image = np.asarray(image)
-    # 转换为rgb图像
-    rgb_image = image[:, :, :3]
-    return rgb_image
-
-
-def video2angle(path, pos_angle, Eg, ui=False):
+def video2angle(path, pos_angle, Eg, ui=True):
     angle_model, transform = infer.init_model_trans()
     detect_model = InferImage()
     cap = cv2.VideoCapture(path)
@@ -263,21 +202,15 @@ def video2angle(path, pos_angle, Eg, ui=False):
     E_skip = float(Eg) * fps  # 抽帧间隔的期望
     R_avail = fps // 2  # 抽帧间隔的波动范围
 
-    timef = random.randint(E_skip - R_avail // 2, E_skip + R_avail // 2)
-
-    num_forwards = 0
-    num_reverses = 0
-    cur_interval_idx = 1
     # mean how many seconds to record information once
-    val_interval = 10
 
-    points = []
-    scales = []
+    points_wrong = []
+    points_right = []
     while isOpened:
         sum += 1
         frameState = cap.grab()
         frames = []
-        if frameState == True and (sum == timef):
+        if (frameState == True) and (sum % (Eg * fps) == 1):
             ret, frame = cap.retrieve()
             # 格式转变，BGRtoRGB
             # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -307,17 +240,14 @@ def video2angle(path, pos_angle, Eg, ui=False):
             # frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
             frames.append(frame)
 
-            # 更新timef
-            timef += random.randint(E_skip - R_avail // 2, E_skip + R_avail // 2)
             frames.reverse()
-            ret_det, ret_angle, bboxes = images2angle(frames, angle_model, transform, detect_model)
+            ret_det, ret_angle = images2angle(frames, angle_model, transform, detect_model)
             ret_det = np.array(ret_det)
             ret_angle = np.array(ret_angle)
             a = np.maximum(ret_det, ret_angle)
             b = np.minimum(ret_det, ret_angle)
             divs = np.minimum(a - b, b - a + 360)
             ans = []
-            print("divs:", divs)
             # 使用循环遍历divs列表
             for i in range(len(divs)):
                 # 检查当前divs的值是否小于45
@@ -331,30 +261,89 @@ def video2angle(path, pos_angle, Eg, ui=False):
             b = np.minimum(ans, pos_angle)
             divs_with_pos = np.minimum(a - b, b - a + 360)
             divs_with_pos = [i > 90 for i in divs_with_pos]
-            num_reverse = int(np.sum(divs_with_pos))
-            num_forwards += len(divs_with_pos) - num_reverse
-            num_reverses += num_reverse
-            img = draw_bboxes(bboxes[0], frames[0], ret_det, ret_angle, divs, divs_with_pos)
-            # yield cv2.cvtColor(img, cv2.COLOR_BGR2RGB), len(divs_with_pos) - num_reverse, num_reverse
+            print(divs_with_pos)
+            print("Time:", sum // fps // 60, sum // fps % 60)
+            num_reverse = (sum // fps, int(np.sum(divs_with_pos)))
+            num_forward = (sum // fps, len(divs_with_pos) - int(np.sum(divs_with_pos)))
+            points_wrong.append(num_reverse)
+            points_right.append(num_forward)
 
-            if sum > cur_interval_idx * val_interval * fps:
-                point = (cur_interval_idx, num_reverses / (num_reverses + num_forwards) if num_reverses + num_forwards else 0)
-                scale = num_reverses + num_forwards
-                points.append(point)
-                scales.append(scale)
-                cur_interval_idx += 1
-                num_reverses = 0
-                num_forwards = 0
-            plot = draw_pic(points, scales)
-            yield img, plot
-                  # len(divs_with_pos) - num_reverse, num_reverse
             frames.clear()
         elif not frameState:
             break
 
-    json_file_path = r"D:\wise_transportation\wrong-way-cycling\mmyolo\data\78-2.json"
+    # 将数据转换成Pandas Series对象，仅使用数值部分
+    times = [pair[0] for pair in points_right]
+    values = [pair[1] for pair in points_right]
+    series_right = pd.Series(data=values, index=times)
 
+    # 使用ARIMA模型构建，其中order=(1,0,1)表示ARMA(1,1)模型
+    model_right = ARIMA(series_right, order=(1, 0, 1))
 
+    # 拟合模型
+    model_right_fit = model_right.fit(method='innovations_mle')
+
+    # 打印模型的摘要信息
+    # print("right:")
+    # print(model_right_fit.summary())
+    # print(model_right_fit.params)
+    minute_result_right = ori2minuteResult(times, values, model_right_fit.params['ar.L1'], Eg)
+    # 将数据转换成Pandas Series对象，仅使用数值部分
+    times = [pair[0] for pair in points_wrong]
+    values = [pair[1] for pair in points_wrong]
+    series_wrong = pd.Series(data=values, index=times)
+
+    # 使用ARIMA模型构建，其中order=(1,0,1)表示ARMA(1,1)模型
+    model_wrong = ARIMA(series_wrong, order=(1, 0, 0))
+
+    # 拟合模型
+    model_wrong_fit = model_wrong.fit(method='innovations_mle')
+
+    # 打印模型的摘要信息
+    # print("wrong:")
+    # print(model_wrong_fit.summary())
+    # print(model_wrong_fit.params)
+
+    minute_result_wrong = ori2minuteResult(times, values, model_wrong_fit.params['ar.L1'], Eg)
+
+    # # 可选：绘制原始数据和预测数据
+    # plt.figure(figsize=(10, 6))
+    # plt.plot(series_right, label='Original Right')
+    # plt.plot(model_right_fit.predict(), label='Predicted Right')
+    # plt.plot(series_wrong, label='Original Wrong')
+    # plt.plot(model_wrong_fit.predict(), label='Predicted Wrong')
+    # plt.legend()
+    # plt.show()
+
+    points = []
+    scales = []
+    print("right:")
+    for i in minute_result_right:
+        print(i)
+    print("wrong:")
+    for i in minute_result_wrong:
+        print(i)
+    print('wwc ratio:', (minute_result_wrong).sum() / (minute_result_wrong.sum() + minute_result_right.sum()))
+    exit()
+    # for i in range(len(minute_result_wrong)):
+    #     points.append((i+1, minute_result_wrong[i]/(minute_result_wrong[i]+minute_result_right[i])))
+    #     scales.append(minute_result_wrong[i]+minute_result_right[i])
+
+    # json_file_path = r"D:\wise_transportation\wrong-way-cycling\mmyolo\data\78-2.json"
+    #
+    # # Read the JSON file
+    # with open(json_file_path, 'r') as json_file:
+    #     data = json.load(json_file)
+    # label_points = []
+    # label_scales = []
+    # for pack in data:
+    #     t, f = pack['right'], pack['wrong']
+    #     label_points.append((pack['time'], f / (t + f)))
+    #     label_scales.append((t + f) * 20)
+    # draw_pic(points, scales, label_points, label_scales)
+    #
+    # ratio = minute_result_wrong.sum() / (minute_result_wrong.sum() + minute_result_right.sum())
+    # print("final ratio:", ratio)
     # return
 
 
@@ -413,23 +402,19 @@ def separate_numbers(data):
 
 if __name__ == '__main__':
     # 创建 Gradio 界面
-    iface = gr.Interface(video2angle,
-                         inputs=[gr.Video(label="upload video"),
-                                 gr.Number(90, label="正向角度（例如向上为90，向下为270）"),
-                                 gr.Number(3, label="采样间隔（秒）")],
-                         outputs=[gr.Image(type="numpy", label="frame processing"),
-                                  gr.Image(type="numpy", label="plot"),
-                                  ],
-                         title="计算机设计大赛：智慧城市——基于集成学习的高效非机动车逆行概率预测",
-                         description="拖入视频点击sumbit即可进行概率预测。"
-                         )
+    iface = gr.Interface(video2angle, inputs=[gr.Video(label="upload video"),
+                                              gr.Number(90, label="Forward orientation"),
+                                              gr.Number(1.5, label="Expected average gap of Monte Carlo sampling")],
+                         outputs=[gr.Image(type="numpy", label="frame processing", ),
+                                  gr.Textbox(label="Forward Number"), gr.Textbox(
+                                 label="Reverse Number")])
 
     # 运行界面
-    iface.launch(share=True)
+    iface.launch()
 
     # no ui
-    # video_path = r'D:\wise_transportation\data\road_videos\suzhou\upload\78-2.MOV'
+    # video_path = r'D:\wise_transportation\data\road_videos\videosV2\42-2.MOV'
     # eg = 2
-    # forward = 95
+    # forward = 85
     # video2angle(video_path, forward, eg)
     # print("finish")

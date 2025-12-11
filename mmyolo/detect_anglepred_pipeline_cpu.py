@@ -1,6 +1,7 @@
 import math
 import os
 import sys
+import time
 sys.path.append(r'D:\wise_transportation\wrong-way-cycling')
 import numpy as np
 import openpyxl
@@ -25,12 +26,16 @@ parser.add_argument("--Eg", type=str)
 args = parser.parse_args()
 file_name = args.name + '-' + args.Eg
 
-def angle_infer(image, bbox, model, transform):
+def multi_angle_infer(image, bboxes, model, transform):
+    if len(bboxes) == 0:
+        return []
     image = Image.fromarray(image)
-    cropped_patch = image.crop(bbox)
-    angle_pred = infer.test(model, transform, cropped_patch)
+    inputs = []
+    for bbox in bboxes:
+        cropped_patch = image.crop(bbox)
+        inputs.append(cropped_patch)
+    angle_pred = infer.multi_image_test(model, transform, inputs, device='cpu')
     return angle_pred
-
 
 def average(x, y):
     y, x = max(x, y), min(x, y)
@@ -43,17 +48,35 @@ def images2angle(paths, angle_model, transform, detect_model, match_type='Hungar
     '''
     修改该函数，使得在匹配之后，每一个bbox有其对应的角度，并在match list中，给出每一个match的角度预测
     '''
+    # 记录推理开始时间
+    inference_start_time = time.time()
+    
     # in bboxes, we save tow list, which contains bboxes of two images
     bboxes = []
     angle_preds = []
     for path in paths:
         img = mmcv.imread(path)
         img = mmcv.imconvert(img, 'bgr', 'rgb')
+        
+        # 记录检测开始时间
+        detect_start_time = time.time()
         bbox = detect_model.ImagePrediction(img).bboxes
+        # 计算检测用时
+        detect_end_time = time.time()
+        detect_time = detect_end_time - detect_start_time
+        print(f"检测用时: {detect_time:.4f} 秒")
+        
         bbox = bbox.tolist()
-        angle_pred = []
+        # 记录angle_infer开始时间
+        angle_start_time = time.time()
+        angle_pred = multi_angle_infer(img, bbox, angle_model, transform)
+        # 计算angle_infer用时
+        angle_end_time = time.time()
+        angle_time = angle_end_time - angle_start_time
+        print(f"angle_infer用时: {angle_time:.4f} 秒")
+
         for i, one_bbox in enumerate(bbox):
-            angle_pred.append(angle_infer(img, bbox[i], angle_model, transform))
+            # angle_pred.append(angle_infer(img, bbox[i], angle_model, transform))
             w = one_bbox[2] - one_bbox[0]
             h = one_bbox[3] - one_bbox[1]
             bbox[i][2] = w
@@ -98,8 +121,14 @@ def images2angle(paths, angle_model, transform, detect_model, match_type='Hungar
         angle = get_angle(vec[0], -vec[1])
         angles_det_ans.append(angle)
         angles_pred_ans.append(average(angle_preds[0][i].cpu().item(), angle_preds[1][j].cpu().item()))
-    print("detect pred：", angles_det_ans)
-    print("angle, pred: ", angles_pred_ans)
+    
+    # 计算推理用时
+    inference_end_time = time.time()
+    inference_time = inference_end_time - inference_start_time
+    print(f"单次推理用时: {inference_time:.4f} 秒")
+    
+    # print("detect pred：", angles_det_ans)
+    # print("angle, pred: ", angles_pred_ans)
     return angles_det_ans, angles_pred_ans
 
 
@@ -109,7 +138,11 @@ def sort_(elem):
 
 def dataset2angle(path):
     angle_model, transform = infer.init_model_trans()
-    detect_model = InferImage()
+    detect_model = InferImage(device='cpu')
+    
+    angle_model.cpu()
+    # detect_model.model.cpu()
+    
     conditions = os.listdir(path)
     conditions.sort(key=sort_)
     ans = []
@@ -126,7 +159,7 @@ def dataset2angle(path):
         a = np.maximum(ret_det, ret_angle)
         b = np.minimum(ret_det, ret_angle)
         divs = np.minimum(a - b, b - a + 360)
-        print(divs)
+        # print(divs)
         # 使用循环遍历divs列表
         for i in range(len(divs)):
             # 检查当前divs的值是否小于45
@@ -201,6 +234,9 @@ def separate_numbers(data):
 
 
 if __name__ == '__main__':
+    # 记录总体开始时间
+    total_start_time = time.time()
+    
     path = r'D:\wise_transportation\data\2frame_dataset\\' + file_name
     ans = dataset2angle(path)
     # 调用函数进行分离
@@ -227,3 +263,8 @@ if __name__ == '__main__':
 
     # 保存Excel文件
     workbook.save('data.xlsx')
+    
+    # 计算总体用时
+    total_end_time = time.time()
+    total_time = total_end_time - total_start_time
+    print(f"\n总体处理用时: {total_time:.4f} 秒")

@@ -1,3 +1,4 @@
+import argparse
 import json
 import math
 import os
@@ -25,12 +26,25 @@ from PIL import Image
 from angle_prediction import infer
 import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
+import matplotlib.patches as patches
+from matplotlib.ticker import FormatStrFormatter
 
 def angle_infer(image, bbox, model, transform):
     image = Image.fromarray(image)
     cropped_patch = image.crop(bbox)
     plt.imshow(cropped_patch)
     angle_pred = infer.test(model, transform, cropped_patch)
+    return angle_pred
+
+def multi_angle_infer(image, bboxes, model, transform):
+    if len(bboxes) == 0:
+        return []
+    image = Image.fromarray(image)
+    inputs = []
+    for bbox in bboxes:
+        cropped_patch = image.crop(bbox)
+        inputs.append(cropped_patch)
+    angle_pred = infer.multi_image_test(model, transform, inputs)
     return angle_pred
 
 
@@ -40,50 +54,94 @@ def average(x, y):
         x = x + 360
     return (x + y) / 2 % 360
 
+def draw_bboxes_and_save(bboxes, image, ret_det, ret_angle, flags, wwc, filename, dpi=600):
+    """
+    Draw bounding boxes on an image and save it to a file.
 
-def images2angle(paths, inited_model, match_type='Hungary'):
+    Parameters:
+    - bboxes: List of bounding boxes, where each bbox is defined as (x, y, width, height).
+    - image: Image on which to draw the bounding boxes.
+    - filename: Filename for the saved image.
+    """
+    # 创建一个图和一个坐标轴，关闭坐标轴
+    fig, ax = plt.subplots(1, figsize=(image.shape[1] / dpi, image.shape[0] / dpi), dpi=dpi)
+    ax.axis('off')  # 不显示坐标轴
+    image = mmcv.imconvert(image, 'bgr', 'rgb')
+    # 显示图像
+    ax.imshow(image)
+    cur = 0
+    # 对每个边界框进行遍历并绘制
+    for i, bbox in enumerate(bboxes):
+        x, y, width, height, _ = bbox
+        if i >= len(flags) or flags[i] > 120:
+            continue
+        if wwc[cur] == False:
+            color = 'green'
+        else:
+            color = 'red'
+        rect = patches.Rectangle((x, y), width, height, linewidth=1, edgecolor=color, facecolor='none')
+        # 添加这个patch到坐标轴上
+        ax.add_patch(rect)
+        txt = "det: " + str(int(ret_det[cur])) + '\n' + "ori:" + str(int(ret_angle[cur]))
+        ax.text(x, y, txt, color='blue', fontsize=3, verticalalignment='top',
+                bbox=dict(facecolor='white', alpha=0, edgecolor='none'))
+        cur += 1
+    # 保存图像，去除周围的空白
+    plt.savefig(filename, bbox_inches='tight', pad_inches=0, dpi=dpi)
+    plt.close(fig)  # 关闭图形，避免内存泄漏
+
+# input 2 image paths, as a list or tuple output predicted angle
+def images2angle(images, angle_model, transform, detect_model, match_type='Hungary'):
+    '''
+    修改该函数，使得在匹配之后，每一个bbox有其对应的角度，并在match list中，给出每一个match的角度预测
+    '''
+    # in bboxes, we save tow list, which contains bboxes of two images
     bboxes = []
-    for path in paths:
-        img = mmcv.imread(path)
+    angle_preds = []
+    for image in images:
+        img = image
         img = mmcv.imconvert(img, 'bgr', 'rgb')
-        bbox = inited_model.ImagePrediction(img).bboxes
+        bbox = detect_model.ImagePrediction(img).bboxes
         bbox = bbox.tolist()
-        # 可视化
-        # draw_bbox_on_image(img, bbox, path.split('\\')[-2] + '_' + path.split('\\')[-1])
+        # angle_pred = []
+        angle_pred = multi_angle_infer(img, bbox, angle_model, transform)
         for i, one_bbox in enumerate(bbox):
+            # angle_pred.append(angle_infer(img, bbox[i], angle_model, transform))
             w = one_bbox[2] - one_bbox[0]
             h = one_bbox[3] - one_bbox[1]
             bbox[i][2] = w
             bbox[i][3] = h
             bbox[i].append(0.0)
+        angle_preds.append(angle_pred)
         bboxes.append(bbox)
 
-    # print('bbox:\n', bboxes)
     # get ious from one list of bbox to the other
     ious = box_iou_rotated(torch.tensor(bboxes[0]).float(),
                            torch.tensor(bboxes[1]).float()).cpu().numpy()
     # print('iou matrix:\n', ious)
     if len(ious) == 0 or len(ious[0]) == 0:
-        return []
+        return [], [], [[],[]]
     match_list = []
     if match_type == 'Hungary':
         ious[ious > 0.98] = 0
-        ious[ious < 0.5] = 0
+        ious[ious < 0.4] = 0
         # print(ious)
         # 删除全为0的行和列
         nonzero_rows = np.any(ious != 0, axis=1)  # 找到非零行
         nonzero_cols = np.any(ious != 0, axis=0)  # 找到非零列
         ious = ious[nonzero_rows][:, nonzero_cols]  # 使用布尔索引获取非零行和列的子矩阵
-        print(ious)
+        # print(ious)
         row_id, col_id = linear_sum_assignment(ious, maximize=True)
         match_list = np.array([row_id, col_id]).transpose()
+        # match_list_ = list(match_list_)
     else:
         iou_argmax = np.argmax(ious, axis=1)
         iou_max = np.max(ious, axis=1)
         enough_iou_idxs = np.where(iou_max > 0.05)
         for idx in enough_iou_idxs[0]:
             match_list.append((idx, iou_argmax[idx]))
-    angles = []
+    angles_det_ans = []
+    angles_pred_ans = []
     for i, j in match_list:
         point1 = bboxes[0][i]
         point2 = bboxes[1][j]
@@ -91,10 +149,12 @@ def images2angle(paths, inited_model, match_type='Hungary'):
         center2 = point2[0] + point2[2] / 2, point2[1] + point2[3] / 2
         vec = np.array(center1) - np.array(center2)
         angle = get_angle(vec[0], -vec[1])
-        angles.append(angle)
-    print(angles)
-
-    return angles
+        angles_det_ans.append(angle)
+        angles_pred_ans.append(average(angle_preds[0][i].cpu().item(), angle_preds[1][j].cpu()).item())
+    print("detect pred：", angles_det_ans)
+    print("angle, pred: ", angles_pred_ans)
+    # print('bbox:\n', bboxes)
+    return angles_det_ans, angles_pred_ans, bboxes
 
 
 def sort_(elem):
@@ -136,6 +196,9 @@ def draw_pic(points, scales=None, label_points=None, label_scales=None):
 def ori2minuteResult(times, values, phi, Eg):
     print("Phi:", phi)
     useful_data = np.array(values[1:])
+
+    phi=0
+
     overlapping_data = phi*np.array(values[:-1])
     processed_data = useful_data - overlapping_data
     print("ori:", useful_data)
@@ -155,8 +218,8 @@ def ori2minuteResult(times, values, phi, Eg):
     return mean_values
 
 
-def video2angle(path, pos_angle, Eg, ui=False):
-    # angle_model, transform = infer.init_model_trans()
+def video2angle(path, pos_angle, Eg, save_dir, ui=False):
+    angle_model, transform = infer.init_model_trans()
     detect_model = InferImage()
     cap = cv2.VideoCapture(path)
     isOpened = cap.isOpened  # 判断是否打开
@@ -211,20 +274,30 @@ def video2angle(path, pos_angle, Eg, ui=False):
             frames.append(frame)
 
             frames.reverse()
-            ret_det = images2angle(frames, detect_model)
+            ret_det, ret_angle, bboxes = images2angle(frames, angle_model, transform, detect_model)
             ret_det = np.array(ret_det)
-            # ret_angle = np.array(ret_angle)
-            # a = np.maximum(ret_det, ret_angle)
-            # b = np.minimum(ret_det, ret_angle)
-            # divs = np.minimum(a - b, b - a + 360)
-            ans = ret_det
-
+            ret_angle = np.array(ret_angle)
+            a = np.maximum(ret_det, ret_angle)
+            b = np.minimum(ret_det, ret_angle)
+            divs = np.minimum(a - b, b - a + 360)
+            ans = []
+            # 使用循环遍历divs列表
+            for i in range(len(divs)):
+                # 检查当前divs的值是否小于45
+                if divs[i] < 120:
+                    # 获取当前索引对应的ret_det和ret_angle的值
+                    current_ret_det = ret_det[i]
+                    current_ret_angle = ret_angle[i]
+                    ave = average(current_ret_det, current_ret_angle)
+                    ans.append(ave)
             a = np.maximum(ans, pos_angle)
             b = np.minimum(ans, pos_angle)
             divs_with_pos = np.minimum(a - b, b - a + 360)
             divs_with_pos = [i > 90 for i in divs_with_pos]
-            print(divs_with_pos)
-            print("Time:", sum // fps // 60, sum // fps % 60)
+            # draw_bboxes_and_save(bboxes[0], frames[0], ret_det, ret_angle, divs, divs_with_pos,
+            #                      os.path.join(r'D:\wise_transportation\wrong-way-cycling\mmyolo\exp\vis',str(sum//fps)+'.jpg'))
+            # print(divs_with_pos)
+            # print("Time:", sum // fps // 60, sum // fps % 60)
             num_reverse = (sum // fps, int(np.sum(divs_with_pos)))
             num_forward = (sum // fps, len(divs_with_pos) - int(np.sum(divs_with_pos)))
             points_wrong.append(num_reverse)
@@ -242,15 +315,12 @@ def video2angle(path, pos_angle, Eg, ui=False):
     # 使用ARIMA模型构建，其中order=(1,0,1)表示ARMA(1,1)模型
     model_right = ARIMA(series_right, order=(1, 0, 1))
 
-    # 使用ARIMA模型构建，其中order=(1,0,1)表示ARMA(1,1)模型
-    model_right = ARIMA(series_right, order=(1, 0, 1))
-
     # 拟合模型
     model_right_fit = model_right.fit()
 
     # 打印模型的摘要信息
-    # print("right:")
-    # print(model_right_fit.summary())
+    print("right:")
+    print(model_right_fit.summary())
     # print(model_right_fit.params)
     minute_result_right = ori2minuteResult(times, values, model_right_fit.params['ar.L1'], Eg)
     # 将数据转换成Pandas Series对象，仅使用数值部分
@@ -259,38 +329,82 @@ def video2angle(path, pos_angle, Eg, ui=False):
     series_wrong = pd.Series(data=values, index=times)
 
     # 使用ARIMA模型构建，其中order=(1,0,1)表示ARMA(1,1)模型
-    model_wrong = ARIMA(series_wrong, order=(1, 0, 0))
+    model_wrong = ARIMA(series_wrong, order=(1, 0, 1))
 
     # 拟合模型
     model_wrong_fit = model_wrong.fit()
 
     # 打印模型的摘要信息
-    # print("wrong:")
-    # print(model_wrong_fit.summary())
+    print("wrong:")
+    print(model_wrong_fit.summary())
     # print(model_wrong_fit.params)
 
     minute_result_wrong = ori2minuteResult(times, values, model_wrong_fit.params['ar.L1'], Eg)
 
+    # ARIMA(1,0,0)模型
+    # 使用ARIMA(1,0,0)模型构建
+    model_right_100 = ARIMA(series_right, order=(1, 0, 0))
+    model_wrong_100 = ARIMA(series_wrong, order=(1, 0, 0))
 
+    # 拟合模型
+    model_right_fit_100 = model_right_100.fit()
+    model_wrong_fit_100 = model_wrong_100.fit()
 
-    # 可选：绘制原始数据和预测数据
-    plt.figure(figsize=(10, 6))
-    plt.plot(series_right, label='Original Right')
-    plt.plot(model_right_fit.predict(), label='Predicted Right')
-    plt.plot(series_wrong, label='Original Wrong')
-    plt.plot(model_wrong_fit.predict(), label='Predicted Wrong')
-    plt.legend()
-    plt.show()
+    # 打印模型的摘要信息
+    print("right ARIMA(1,0,0):")
+    print(model_right_fit_100.summary())
+    print("wrong ARIMA(1,0,0):")
+    print(model_wrong_fit_100.summary())
+
+    # 计算ARIMA(1,0,0)的分钟结果
+    minute_result_right_100 = ori2minuteResult(times, [pair[1] for pair in points_right], model_right_fit_100.params['ar.L1'], Eg)
+    minute_result_wrong_100 = ori2minuteResult(times, [pair[1] for pair in points_wrong], model_wrong_fit_100.params['ar.L1'], Eg)
+
+    # 创建2×1的子图布局，垂直排列
+    fig, axes = plt.subplots(2, 1, figsize=(10, 10))
+    # fig.suptitle('ARIMA Model Comparison - ' + save_dir, fontsize=16, y=0.95)
+
+    fontsize = 15
+    # 第一个子图：Right Direction - 三条线对比
+    axes[0].plot(series_right, label='Original Data', linewidth=1.5, color='black')
+    axes[0].plot(model_right_fit_100.predict(), label='ARMA(1,0) Predicted', linewidth=1.5, linestyle='--', color='blue')
+    axes[0].plot(model_right_fit.predict(), label='ARMA(1,1) Predicted', linewidth=1.5, linestyle=':', color='red')
+    axes[0].legend(fontsize=fontsize)
+    # axes[0].set_title('Right Direction Data')
+    axes[0].set_xlabel('Time', fontsize=fontsize+1)
+    axes[0].set_ylabel('Count', fontsize=fontsize+1)
+    axes[0].tick_params(axis='both', which='major', labelsize=fontsize)
+    axes[0].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+    axes[0].grid(True, alpha=0.3)
+
+    # 第二个子图：Wrong Direction - 三条线对比
+    axes[1].plot(series_wrong, label='Original Data', linewidth=1.5, color='black')
+    axes[1].plot(model_wrong_fit_100.predict(), label='ARMA(1,0) Predicted', linewidth=1.5, linestyle='--', color='blue')
+    axes[1].plot(model_wrong_fit.predict(), label='ARMA(1,1) Predicted', linewidth=1.5, linestyle=':', color='red')
+    axes[1].legend(fontsize=fontsize)
+    # axes[1].set_title('Wrong Direction Data')
+    axes[1].set_xlabel('Time', fontsize=fontsize+1)
+    axes[1].set_ylabel('Count', fontsize=fontsize+1)
+    axes[1].tick_params(axis='both', which='major', labelsize=fontsize)
+    axes[1].yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+    axes[1].grid(True, alpha=0.3)
+
+    # 调整子图之间的间距
+    plt.tight_layout()
+    
+    # 保存合并后的图表
+    plt.savefig('exp/arma/revise_'+save_dir+'_combined_1x2_big'+".png", dpi=300, bbox_inches='tight')
+    plt.close()
 
     points = []
     scales = []
-    print("right:")
-    for i in minute_result_right:
-        print(i)
-    print("wrong:")
-    for i in minute_result_wrong:
-        print(i)
-    exit()
+    # print("right:")
+    # for i in minute_result_right:
+    #     print(i)
+    # print("wrong:")
+    # for i in minute_result_wrong:
+    #     print(i)
+    # print('wwc ratio:', sum(minute_result_wrong)/(sum(minute_result_wrong)+sum(minute_result_right)) )
     # for i in range(len(minute_result_wrong)):
     #     points.append((i+1, minute_result_wrong[i]/(minute_result_wrong[i]+minute_result_right[i])))
     #     scales.append(minute_result_wrong[i]+minute_result_right[i])
@@ -374,9 +488,18 @@ if __name__ == '__main__':
     # # 运行界面
     # iface.launch()
 
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--name", type=str)
+    parser.add_argument("--Eg", type=int)
+    parser.add_argument("--forward", type=int)
+    args = parser.parse_args()
+
+    video_path = args.name
+    eg = args.Eg
+    forward = args.forward
     # no ui
-    video_path = r'D:\wise_transportation\data\road_videos\videosV2\42-2.MOV'
-    eg = 2
-    forward = 85
-    video2angle(video_path, forward, eg)
+    # video_path = r'D:\wise_transportation\data\road_videos\videosV2\90-4.MOV'
+    # eg = 2
+    # forward = 280
+    video2angle(video_path, forward, eg, video_path.split('\\')[-1].split('.')[0])
     print("finish")

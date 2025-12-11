@@ -14,11 +14,7 @@ import numpy as np
 import openpyxl
 import argparse
 
-parser = argparse.ArgumentParser()
-parser.add_argument("--name", type=str)
-parser.add_argument("--Eg", type=str)
-args = parser.parse_args()
-file_name = args.name + '-' + args.Eg
+
 def get_angle(x, y):
     angle = math.atan2(y, x) * 180 / math.pi
     return angle if angle >= 0 else 360 + angle

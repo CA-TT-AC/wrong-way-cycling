@@ -19,11 +19,11 @@ class InferImage():
         threshold: Bbox score threshold
     """
     def __init__(self,path_to_checkpoint: str = r'./ckpt/5m_ver2.pth', path_to_config: str = r'.\configs\custom\5m.py',
-                 threshold: float = 0.8) -> None:
+                 threshold: float = 0.8, device: str = 'cuda:0') -> None:
         config = Config.fromfile(path_to_config)
         self.model = init_detector(config,
                             path_to_checkpoint,
-                            device='cuda:0',
+                            device=device,
                             cfg_options={})
         self.threshold = threshold
     def ImagePrediction(self, image: ImagesType) -> InstanceData:
@@ -46,6 +46,8 @@ class InferImage():
                 polygons: [[1, 2, 3, 4], [5, 6, 7, 8]]
             ) at 0x7fb492de6280>
         '''
+        # print(self.model.attr)
+        
         result = inference_detector(self.model, image)
         pred_instances = result.pred_instances[result.pred_instances.scores > self.threshold]
         return pred_instances

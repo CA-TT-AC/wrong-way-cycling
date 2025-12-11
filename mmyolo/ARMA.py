@@ -122,41 +122,14 @@ def sort_(elem):
     return int(elem)
 
 
-def draw_pic(points, scales=None, label_points=None, label_scales=None):
-    # 将点列表分解为两个列表：x坐标和y坐标
-    x, y = zip(*points)
 
-    # 创建一个图表
-    plt.figure(figsize=(10, 6))
-
-    # 绘制折线图
-    pred_line = plt.plot(x, y, marker='', linestyle='--', color='blue', label='prediction')  # 'o'表示点的样式
-    print(x, y)
-    print("scales:", scales)
-    scales = np.array(scales) * 400
-    # 在相同的坐标上绘制不同大小的点
-    plt.scatter(x, y, s=scales, color='blue', marker='o', alpha=0.5)
-    if label_points is not None:
-        x, y = zip(*label_points)
-        # 绘制折线图
-        label_line = plt.plot(x, y, marker='', linestyle='dashdot', color='green', label='annotation')  # 'o'表示点的样式
-        # 在相同的坐标上绘制不同大小的点
-        plt.scatter(x, y, s=label_scales, color='green', marker='o', alpha=0.5)
-        plt.legend()
-    #     plt.legend((pred_line, label_line), ['prediction', 'annotation'])
-    # else:
-    #     plt.legend(pred_line, ['prediction'])
-    # 设置图表的标题和坐标轴标签
-    plt.title("Time per Ratio")
-    plt.xlabel("Time")
-    plt.ylabel("Ratio")
-
-    # 显示图表
-    plt.savefig("output.png", dpi=400)
 
 def ori2minuteResult(times, values, phi, Eg):
     print("Phi:", phi)
     useful_data = np.array(values[1:])
+
+    phi=0
+
     overlapping_data = phi*np.array(values[:-1])
     processed_data = useful_data - overlapping_data
     print("ori:", useful_data)
@@ -272,7 +245,7 @@ def video2angle(path, pos_angle, Eg, ui=False):
     model_right = ARIMA(series_right, order=(1, 0, 1))
 
     # 拟合模型
-    model_right_fit = model_right.fit()
+    model_right_fit = model_right.fit(method='innovations_mle')
 
     # 打印模型的摘要信息
     # print("right:")
@@ -288,11 +261,11 @@ def video2angle(path, pos_angle, Eg, ui=False):
     model_wrong = ARIMA(series_wrong, order=(1, 0, 0))
 
     # 拟合模型
-    model_wrong_fit = model_wrong.fit()
+    model_wrong_fit = model_wrong.fit(method='innovations_mle')
 
     # 打印模型的摘要信息
     # print("wrong:")
-    # print(model_wrong_fit.summary())
+    print(model_wrong_fit.summary())
     # print(model_wrong_fit.params)
 
     minute_result_wrong = ori2minuteResult(times, values, model_wrong_fit.params['ar.L1'], Eg)
@@ -316,6 +289,7 @@ def video2angle(path, pos_angle, Eg, ui=False):
     print("wrong:")
     for i in minute_result_wrong:
         print(i)
+    print('wwc ratio:', (minute_result_wrong).sum()/(minute_result_wrong.sum()+minute_result_right.sum()) )
     exit()
     # for i in range(len(minute_result_wrong)):
     #     points.append((i+1, minute_result_wrong[i]/(minute_result_wrong[i]+minute_result_right[i])))
@@ -401,8 +375,8 @@ if __name__ == '__main__':
     # iface.launch()
 
     # no ui
-    video_path = r'D:\wise_transportation\data\road_videos\videosV2\90-4.MOV'
+    video_path = r'D:\wise_transportation\data\road_videos\videosV2\42-2.MOV'
     eg = 2
-    forward = 280
+    forward = 85
     video2angle(video_path, forward, eg)
     print("finish")
