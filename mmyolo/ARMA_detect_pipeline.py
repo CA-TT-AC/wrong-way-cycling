@@ -20,11 +20,14 @@ import mmcv
 from pipeline_utils import box_iou_rotated
 from sklearn.cluster import KMeans
 import numpy as np
-from detect_pipeline import get_angle
 from PIL import Image
 from angle_prediction import infer
 import pandas as pd
 from statsmodels.tsa.arima.model import ARIMA
+
+def get_angle(x, y):
+    angle = math.atan2(y, x) * 180 / math.pi
+    return angle if angle >= 0 else 360 + angle
 
 def angle_infer(image, bbox, model, transform):
     image = Image.fromarray(image)
